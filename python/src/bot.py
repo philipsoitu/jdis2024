@@ -9,14 +9,87 @@ import heapq
 
 class Cell:
     def __init__(self) -> None:
-        
-        self.up = False
-        self.down = False
-        self.left = False
-        self.right = False
+        self.walls = [False, False, False, False]  # [top, right, bottom, left]
 
+class Map:
+    def __init__(self) -> None:
+        self.size = 10
+        self.grid = [[Cell() for _ in range(self.size)] for _ in range(self.size)]
+
+    def place_wall(self, x, y, direction):
+        if x < 0 or x >= self.size or y < 0 or y >= self.size:
+            print("Invalid cell coordinates")
+            return
+
+        if direction not in ["top", "right", "bottom", "left"]:
+            print("Invalid direction. Use 'top', 'right', 'bottom', or 'left'")
+            return
+
+        directions = ["top", "right", "bottom", "left"]
+        dir_index = directions.index(direction)
+        
+        # Place wall in the current cell
+        self.grid[y][x].walls[dir_index] = True
+
+        # Place wall in the adjacent cell
+        adj_x, adj_y = x, y
+        adj_dir_index = (dir_index + 2) % 4  # Opposite direction
+
+        if direction == "top":
+            adj_y -= 1
+        elif direction == "right":
+            adj_x += 1
+        elif direction == "bottom":
+            adj_y += 1
+        elif direction == "left":
+            adj_x -= 1
+
+        # Check if adjacent cell is within the grid
+        if 0 <= adj_x < self.size and 0 <= adj_y < self.size:
+            self.grid[adj_y][adj_x].walls[adj_dir_index] = True
+
+    def print_map(self):
+        for row in self.grid:
+            for cell in row:
+                print(f"[{''.join('W' if w else ' ' for w in cell.walls)}]", end="")
+            print(cell)
 
 class MyBot:
+
+    def currentCell(self, location):
+        x, y = location[0], location[1]
+        cell_x = int(x // 10)
+        cell_y = int(y // 10)
+        return (cell_x, cell_y)
+
+    def getWall(self, current_location):
+        current_cell = self.currentCell(current_location)
+        x, y = current_location
+
+        # Calculate distances to cell boundaries
+        distances = {
+            "top": y % 10,
+            "bottom": 10 - (y % 10),
+            "left": x % 10,
+            "right": 10 - (x % 10)
+        }
+
+        # Find the closest wall
+        closest_wall = min(distances, key=distances.get)
+
+        # Map the direction to the corresponding index in the Cell.walls list
+        direction_to_index = {"top": 0, "right": 1, "bottom": 2, "left": 3}
+        wall_index = direction_to_index[closest_wall]
+
+        # Place the wall in the map
+        self.map.place_wall(int(current_cell[0]), int(current_cell[1]), closest_wall)
+
+        print(f"Closest wall: {closest_wall}")
+        print(f"Current location: {current_location}")
+        print(f"Current cell: {current_cell}")
+        self.map.print_map()
+        return closest_wall
+
     def __init__(self):
         self.name = "ChevyMalibu2010"  # 10 characters
         self.__map_state = None
@@ -26,6 +99,8 @@ class MyBot:
         self.directions = [(100,0),(0,-100),(-100,0),(0,100)]
         self.directioncount = 0
         self.moving = False
+        self.map = Map()
+        self.oncookie = False
 
 
 
@@ -40,15 +115,29 @@ class MyBot:
 
         playercoord = mystate.pos
         currentlocation = self.createPoint(playercoord)
-        nearestcookiecell = self.find_nearest_coin()
+        closestcookie = self.nearestcoin(currentlocation,list(game_state.coins))
+        cookiecell,cookielocation = closestcookie
+        currentcell = self.currentCell(currentlocation)
 
-        if currentlocation == self.lastposition and self.moving:
+        if currentlocation == self.lastposition and self.moving and self.oncookie is False:
             # ADD WALL logic here if needed
             self.directioncount = (self.directioncount + 1) % 4
-            print(f"WALL encountered. New direction: {self.directioncount}")
-            currentcell = self.currentCell(currentlocation)
-            print(currentcell)
+            # print(f"WALL encountered. New direction: {self.directioncount}")
+            self.getWall(currentlocation)
             self.moving = False
+        elif currentlocation == self.lastposition and self.moving:
+            dx, dy = self.directions[self.directioncount]
+            destination = (currentlocation[0] + dx, currentlocation[1] + dy)
+            self.moving = True    
+            actions.append(MoveAction(destination))
+    
+        if cookiecell == currentcell:
+            
+            actions.append(MoveAction(cookielocation))
+            self.oncookie = True
+            
+
+
 
         if not self.moving:
             dx, dy = self.directions[self.directioncount]
@@ -56,8 +145,8 @@ class MyBot:
             self.moving = True    
             actions.append(MoveAction(destination))
 
-        print(f"Current location: {currentlocation}")
-        print(f"Destination: {destination if 'destination' in locals() else 'Not set'}")
+        # print(f"Current location: {currentlocation}")
+        # print(f"Destination: {mystate.dest}")
         
         self.lastposition = currentlocation
         return actions
@@ -69,63 +158,35 @@ class MyBot:
     def createPoint(self,location: Point):
         return (round(location.x,2),round(location.y,2))
     
-    def currentCell(self, location):
-        x, y = location[0],location[1]
-        cell_x = x // 10
-        cell_y = y // 10
-        return (cell_x, cell_y)
+
 
     def on_end(self):
         pass
     def find_nearest_coin(self, coins, our_position):
         return min(coins, key=lambda coin: self.distance(coin.position, our_position), default=None)
 
-    def find_nearest_enemy(self, players, our_bot):
-        enemies = [player for player in players if player['name'] != our_bot['name']]
-        return min(enemies, key=lambda enemy: self.distance(enemy['position'], our_bot['position']), default=None)
+    def nearestcoin(self, pos, coins):
+        index=0
+        smallestindex = 0
+        shortestdistance = 100000
+        distance = 0
 
-    def distance(self, point1, point2):
-        return ((point1.x - point2.x)**2 + (point1.y - point2.y)**2)**0.5
+        for coin in coins: 
+            coinlocation = self.createPoint(coin.pos)
+            distance = self.distance(coinlocation,pos)
 
-    def find_path(self, start: Point, goal: Point):
-        def heuristic(a, b):
-            return abs(b.x - a.x) + abs(b.y - a.y)
+            if distance < shortestdistance:
+                shortestdistance=distance
+                smallestindex=index
+            index+=1
+            
 
-        def get_neighbors(point):
-            neighbors = []
-            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
-                next_point = Point(point.x + dx, point.y + dy)
-                if 0 <= next_point.x < self.__map_state.size and 0 <= next_point.y < self.__map_state.size:
-                    if self.__map_state.discrete_grid[int(next_point.y)][int(next_point.x)] == 0:
-                        neighbors.append(next_point)
-            return neighbors
+        cell = self.currentCell(self.createPoint(coins[smallestindex].pos))
+        location = self.createPoint(coins[smallestindex].pos)
+            
+        return cell, location
+            
+    def distance(self, tuple1, tuple2):
+        return ((tuple1[0] - tuple2[0])**2 + (tuple1[1] - tuple2[1])**2)**0.5
 
-        frontier = []
-        heapq.heappush(frontier, (0, start))
-        came_from = {start: None}
-        cost_so_far = {start: 0}
-
-        while frontier:
-            current = heapq.heappop(frontier)[1]
-
-            if current.x == goal.x and current.y == goal.y:
-                break
-
-            for next in get_neighbors(current):
-                new_cost = cost_so_far[current] + 1
-                if next not in cost_so_far or new_cost < cost_so_far[next]:
-                    cost_so_far[next] = new_cost
-                    priority = new_cost + heuristic(goal, next)
-                    heapq.heappush(frontier, (priority, next))
-                    came_from[next] = current
-
-        if goal not in came_from:
-            return None
-
-        path = []
-        current = goal
-        while current != start:
-            path.append(current)
-            current = came_from[current]
-        path.reverse()
-        return path
+    
