@@ -11,10 +11,12 @@ class Cell:
     def __init__(self) -> None:
         self.walls = [False, False, False, False]  # [top, right, bottom, left]
 
+
 class Map:
     def __init__(self) -> None:
         self.size = 10
-        self.grid = [[Cell() for _ in range(self.size)] for _ in range(self.size)]
+        self.grid = [[Cell() for _ in range(self.size)]
+                     for _ in range(self.size)]
 
     def place_wall(self, x, y, direction):
         if x < 0 or x >= self.size or y < 0 or y >= self.size:
@@ -27,7 +29,7 @@ class Map:
 
         directions = ["top", "right", "bottom", "left"]
         dir_index = directions.index(direction)
-        
+
         # Place wall in the current cell
         self.grid[y][x].walls[dir_index] = True
 
@@ -53,6 +55,7 @@ class Map:
             for cell in row:
                 print(f"[{''.join('W' if w else ' ' for w in cell.walls)}]", end="")
             print(cell)
+
 
 class MyBot:
 
@@ -82,7 +85,8 @@ class MyBot:
         wall_index = direction_to_index[closest_wall]
 
         # Place the wall in the map
-        self.map.place_wall(int(current_cell[0]), int(current_cell[1]), closest_wall)
+        self.map.place_wall(int(current_cell[0]), int(
+            current_cell[1]), closest_wall)
 
         print(f"Closest wall: {closest_wall}")
         print(f"Current location: {current_location}")
@@ -95,21 +99,18 @@ class MyBot:
         self.__map_state = None
         self.path = []
         self.mapstate = []
-        self.lastposition = (0,0)
-        self.directions = [(100,0),(0,-100),(-100,0),(0,100)]
+        self.lastposition = (0, 0)
+        self.directions = [(100, 0), (0, -100), (-100, 0), (0, 100)]
         self.directioncount = 0
         self.moving = False
         self.map = Map()
         self.oncookie = False
         self.initialize = True
 
-
-
-    
-        
     def on_tick(self, game_state: GameState) -> List[Union[MoveAction, SwitchWeaponAction, RotateBladeAction, ShootAction, SaveAction]]:
         actions = []
-        mystate = next((player for player in game_state.players if player.name == self.name), None)
+        mystate = next(
+            (player for player in game_state.players if player.name == self.name), None)
 
         if self.initialize:
             actions = [SwitchWeaponAction(PlayerWeapon.PlayerWeaponCanon)]
@@ -118,14 +119,15 @@ class MyBot:
         a = self.find_nearest_enemy(game_state.players, "ChevyMalibu2010")
         predicted_position = [a.pos.x, a.pos.y]
         actions.append(ShootAction(predicted_position))
-        
+
         if not mystate:
             return actions
 
         playercoord = mystate.pos
         currentlocation = self.createPoint(playercoord)
-        closestcookie = self.nearestcoin(currentlocation,list(game_state.coins))
-        cookiecell,cookielocation = closestcookie
+        closestcookie = self.nearestcoin(
+            currentlocation, list(game_state.coins))
+        cookiecell, cookielocation = closestcookie
         currentcell = self.currentCell(currentlocation)
 
         if currentlocation == self.lastposition and self.moving and self.oncookie is False:
@@ -137,26 +139,23 @@ class MyBot:
         elif currentlocation == self.lastposition and self.moving:
             dx, dy = self.directions[self.directioncount]
             destination = (currentlocation[0] + dx, currentlocation[1] + dy)
-            self.moving = True    
+            self.moving = True
             actions.append(MoveAction(destination))
-    
+
         if cookiecell == currentcell:
-            
+
             actions.append(MoveAction(cookielocation))
             self.oncookie = True
-            
-
-
 
         if not self.moving:
             dx, dy = self.directions[self.directioncount]
             destination = (currentlocation[0] + dx, currentlocation[1] + dy)
-            self.moving = True    
+            self.moving = True
             actions.append(MoveAction(destination))
 
         # print(f"Current location: {currentlocation}")
         # print(f"Destination: {mystate.dest}")
-        
+
         self.lastposition = currentlocation
         return actions
 
@@ -164,38 +163,58 @@ class MyBot:
         self.__map_state = map_state
         print(map_state)
 
-    def createPoint(self,location: Point):
-        return (round(location.x,2),round(location.y,2))
-    
-
+    def createPoint(self, location: Point):
+        return (round(location.x, 2), round(location.y, 2))
 
     def on_end(self):
         pass
+
     def find_nearest_coin(self, coins, our_position):
         return min(coins, key=lambda coin: self.distance(coin.position, our_position), default=None)
 
     def nearestcoin(self, pos, coins):
-        index=0
+        index = 0
         smallestindex = 0
         shortestdistance = 100000
         distance = 0
 
-        for coin in coins: 
+        for coin in coins:
             coinlocation = self.createPoint(coin.pos)
-            distance = self.distance(coinlocation,pos)
+            distance = self.distance(coinlocation, pos)
 
             if distance < shortestdistance:
-                shortestdistance=distance
-                smallestindex=index
-            index+=1
-            
+                shortestdistance = distance
+                smallestindex = index
+            index += 1
 
         cell = self.currentCell(self.createPoint(coins[smallestindex].pos))
         location = self.createPoint(coins[smallestindex].pos)
-            
+
         return cell, location
-            
+
     def distance(self, tuple1, tuple2):
         return ((tuple1[0] - tuple2[0])**2 + (tuple1[1] - tuple2[1])**2)**0.5
 
-    
+    def find_nearest_enemy(self, players, our_name):
+        name_closest_bot = ""
+        smallest_distance = 99999999999999
+
+        my_pos = self.name_search(players, our_name).pos
+
+        for player in players:
+            if player.name != our_name:
+                curr_distance = ((my_pos.x - player.pos.x)**2 + (my_pos.y-player.pos.y)**2)**0.5
+
+                if curr_distance < smallest_distance:
+                    smallest_distance = curr_distance
+                    name_closest_bot = player.name
+
+        target = self.name_search(players, name_closest_bot)
+
+        return target
+
+    def name_search(self, players, name):
+        for player in players:
+            if player.name == name:
+                p = player
+        return p
