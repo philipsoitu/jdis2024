@@ -101,6 +101,7 @@ class MyBot:
         self.moving = False
         self.map = Map()
         self.oncookie = False
+        self.initialize = True
 
 
 
@@ -109,6 +110,14 @@ class MyBot:
     def on_tick(self, game_state: GameState) -> List[Union[MoveAction, SwitchWeaponAction, RotateBladeAction, ShootAction, SaveAction]]:
         actions = []
         mystate = next((player for player in game_state.players if player.name == self.name), None)
+
+        if self.initialize:
+            actions = [SwitchWeaponAction(PlayerWeapon.PlayerWeaponCanon)]
+            self.initialize = False
+
+        a = self.find_nearest_enemy(game_state.players, "ChevyMalibu2010")
+        predicted_position = [a.pos.x, a.pos.y]
+        actions.append(ShootAction(predicted_position))
         
         if not mystate:
             return actions
