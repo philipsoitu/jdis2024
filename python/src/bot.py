@@ -7,18 +7,16 @@ import math
 import heapq
 import numpy as np
 from scipy.optimize import fsolve
-
+import keyboard
 
 class Cell:
     def __init__(self) -> None:
         self.walls = [False, False, False, False]  # [top, right, bottom, left]
 
-
 class Map:
     def __init__(self) -> None:
         self.size = 10
-        self.grid = [[Cell() for _ in range(self.size)]
-                     for _ in range(self.size)]
+        self.grid = [[Cell() for _ in range(self.size)] for _ in range(self.size)]
 
     def place_wall(self, x, y, direction):
         if x < 0 or x >= self.size or y < 0 or y >= self.size:
@@ -56,10 +54,15 @@ class Map:
         for row in self.grid:
             for cell in row:
                 print(f"[{''.join('W' if w else ' ' for w in cell.walls)}]", end="")
-            print(cell)
-
+            print()
 
 class MyBot:
+    def __init__(self):
+        self.name = "ChevyMalibu2010"  # 10 characters
+        self.__map_state = None
+        self.map = Map()
+        self.initialize = True
+        self.move_speed = 10  # Adjust this value as needed
 
     def currentCell(self, location):
         x, y = location[0], location[1]
@@ -87,8 +90,7 @@ class MyBot:
         wall_index = direction_to_index[closest_wall]
 
         # Place the wall in the map
-        self.map.place_wall(int(current_cell[0]), int(
-            current_cell[1]), closest_wall)
+        self.map.place_wall(int(current_cell[0]), int(current_cell[1]), closest_wall)
 
         print(f"Closest wall: {closest_wall}")
         print(f"Current location: {current_location}")
@@ -96,74 +98,46 @@ class MyBot:
         self.map.print_map()
         return closest_wall
 
-    def __init__(self):
-        self.name = "ChevyMalibu2010"  # 10 characters
-        self.__map_state = None
-        self.path = []
-        self.mapstate = []
-        self.lastposition = (0, 0)
-        self.directions = [(100, 0), (0, -100), (-100, 0), (0, 100)]
-        self.directioncount = 0
-        self.moving = False
-        self.map = Map()
-        self.oncookie = False
-        self.initialize = True
-
     def on_tick(self, game_state: GameState) -> List[Union[MoveAction, SwitchWeaponAction, RotateBladeAction, ShootAction, SaveAction]]:
         actions = []
-        mystate = next(
-            (player for player in game_state.players if player.name == self.name), None)
-
-        if self.initialize:
-            actions = [SwitchWeaponAction(PlayerWeapon.PlayerWeaponCanon)]
-            self.initialize = False
-        us = self.name_search(game_state.players, "ChevyMalibu2010")
-        a = self.find_nearest_enemy(game_state.players, "ChevyMalibu2010")
-
-        target_vel = [a.dest.x - a.pos.x, a.dest.y - a.pos.y]
-        target_vel = [Consts.Player.SPEED/self.distance((0,0), (target_vel[0], target_vel[1]))*target_vel[0], Consts.Player.SPEED/self.distance((0,0), (target_vel[0], target_vel[1]))*target_vel[1]]
-
-        # predicted_position = [a.pos.x, a.pos.y]
-        predicted_position = self.predict(us.pos, a.pos, target_vel)
-        actions.append(ShootAction(predicted_position))
+        mystate = next((player for player in game_state.players if player.name == self.name), None)
 
         if not mystate:
             return actions
 
-        playercoord = mystate.pos
-        currentlocation = self.createPoint(playercoord)
-        closestcookie = self.nearestcoin(
-            currentlocation, list(game_state.coins))
-        cookiecell, cookielocation = closestcookie
-        currentcell = self.currentCell(currentlocation)
+        if self.initialize:
+            actions.append(SwitchWeaponAction(PlayerWeapon.PlayerWeaponCanon))
+            self.initialize = False
 
-        if currentlocation == self.lastposition and self.moving and self.oncookie is False:
-            # ADD WALL logic here if needed
-            self.directioncount = (self.directioncount + 1) % 4
-            # print(f"WALL encountered. New direction: {self.directioncount}")
-            self.getWall(currentlocation)
-            self.moving = False
-        elif currentlocation == self.lastposition and self.moving:
-            dx, dy = self.directions[self.directioncount]
-            destination = (currentlocation[0] + dx, currentlocation[1] + dy)
-            self.moving = True
-            actions.append(MoveAction(destination))
+        # Shooting logic
+        us = self.name_search(game_state.players, "ChevyMalibu2010")
+        a = self.find_nearest_enemy(game_state.players, "ChevyMalibu2010")
 
-        if cookiecell == currentcell:
+        target_vel = [a.dest.x - a.pos.x, a.dest.y - a.pos.y]
+        target_vel = [Consts.Player.SPEED/self.distance((0,0), (target_vel[0], target_vel[1]))*target_vel[0], 
+                      Consts.Player.SPEED/self.distance((0,0), (target_vel[0], target_vel[1]))*target_vel[1]]
 
-            actions.append(MoveAction(cookielocation))
-            self.oncookie = True
+        predicted_position = self.predict(us.pos, a.pos, target_vel)
+        actions.append(ShootAction(predicted_position))
 
-        if not self.moving:
-            dx, dy = self.directions[self.directioncount]
-            destination = (currentlocation[0] + dx, currentlocation[1] + dy)
-            self.moving = True
-            actions.append(MoveAction(destination))
+        # Movement logic
+        current_x, current_y = mystate.pos.x, mystate.pos.y
+        move_x, move_y = 0, 0
 
-        # print(f"Current location: {currentlocation}")
-        # print(f"Destination: {mystate.dest}")
+        if keyboard.is_pressed('w'):
+            move_y -= self.move_speed
+        if keyboard.is_pressed('s'):
+            move_y += self.move_speed
+        if keyboard.is_pressed('a'):
+            move_x -= self.move_speed
+        if keyboard.is_pressed('d'):
+            move_x += self.move_speed
 
-        self.lastposition = currentlocation
+        if move_x != 0 or move_y != 0:
+            new_x = current_x + move_x
+            new_y = current_y + move_y
+            actions.append(MoveAction((new_x, new_y)))
+
         return actions
 
     def on_start(self, map_state: MapState):
@@ -204,14 +178,13 @@ class MyBot:
 
     def find_nearest_enemy(self, players, our_name):
         name_closest_bot = ""
-        smallest_distance = 99999999999999
+        smallest_distance = float('inf')
 
         my_pos = self.name_search(players, our_name).pos
 
         for player in players:
             if player.name != our_name:
-                curr_distance = ((my_pos.x - player.pos.x) **
-                                 2 + (my_pos.y-player.pos.y)**2)**0.5
+                curr_distance = self.distance((my_pos.x, my_pos.y), (player.pos.x, player.pos.y))
 
                 if curr_distance < smallest_distance:
                     smallest_distance = curr_distance
@@ -224,11 +197,10 @@ class MyBot:
     def name_search(self, players, name):
         for player in players:
             if player.name == name:
-                p = player
-        return p
+                return player
+        return None
 
     def predict(self, my_pos, target_pos, target_vel):
-
         def equations(t):
             x = target_pos.x + target_vel[0] * t
             y = target_pos.y + target_vel[1] * t
@@ -237,7 +209,6 @@ class MyBot:
 
         t_solution = fsolve(equations, 0)[0]
 
-        # Calculate the intersection point
         x_intercept = target_pos.x + target_vel[0] * t_solution
         y_intercept = target_pos.y + target_vel[1] * t_solution
 
