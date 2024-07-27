@@ -1,111 +1,110 @@
 from typing import List, Union
-
 from core.action import MoveAction, ShootAction, RotateBladeAction, SwitchWeaponAction, SaveAction
 from core.consts import Consts
 from core.game_state import GameState, PlayerWeapon, Point
 from core.map_state import MapState
+import math
+import heapq
+
+
+class Cell:
+    def __init__(self) -> None:
+        
+        self.up = False
+        self.down = False
+        self.left = False
+        self.right = False
 
 
 class MyBot:
-     """
-     (fr) Cette classe représente votre bot. Vous pouvez y définir des attributs et des méthodes qui 
-          seront conservées entre chaque appel de la méthode `on_tick`.
+    def __init__(self):
+        self.name = "ChevyMalibu2010"  # 10 characters
+        self.__map_state = None
+        self.path = []
+        self.mapstate = []
+        self.lastposition = (0,0)
+        directions = [(10,0),(-10,0),(0,-10),(0,-10)]
 
-     (en) This class represents your bot. You can define attributes and methods in it that will be kept 
-          between each call of the `on_tick` method.
-     """
-     __map_state: MapState
-     name : str
-     
-     def __init__(self):
-          self.name = "Magellan"
-
-
-     def on_tick(self, game_state: GameState) -> List[Union[MoveAction, SwitchWeaponAction, RotateBladeAction, ShootAction, SaveAction]]:
-          """
-          (fr)    Cette méthode est appelée à chaque tick de jeu. Vous pouvez y définir 
-                    le comportement de votre bot. Elle doit retourner une liste d'actions 
-                    qui sera exécutée par le serveur.
-
-                    Liste des actions possibles:
-                    - MoveAction((x, y))        permet de diriger son bot, il ira a vitesse
-                                                constante jusqu'à ce point.
-
-                    - ShootAction((x, y))       Si vous avez le fusil comme arme, cela va tirer
-                                                à la coordonnée donnée.
-
-                    - SaveAction([...])         Permet de storer 100 octets dans le serveur. Lors
-                                                de votre reconnection, ces données vous seront
-                                                redonnées par le serveur.
-
-                    - SwitchWeaponAction(id)    Permet de changer d'arme. Par défaut, votre bot
-                                                n'est pas armé, voici vos choix:
-                                                       PlayerWeapon.PlayerWeaponNone
-                                                       PlayerWeapon.PlayerWeaponCanon
-                                                       PlayerWeapon.PlayerWeaponBlade
-                                                       
-                    - BladeRotateAction(rad)    Si vous avez la lame comme arme, vous pouver mettre votre arme
-                                                à la rotation donnée en radian.
-
-          (en)    This method is called at each game tick. You can define your bot's behavior here. It must return a 
-                    list of actions that will be executed by the server.
-
-                    Possible actions:
-                    - MoveAction((x, y))        Directs your bot to move to the specified point at a constant speed.
-
-                    - ShootAction((x, y))       If you have the gun equipped, it will shoot at the given coordinates.
-
-                    - SaveAction([...])         Allows you to store 100 bytes on the server. When you reconnect, these 
-                                                data will be provided to you by the server.
-
-                    - SwitchWeaponAction(id)    Allows you to change your weapon. By default, your bot is unarmed. Here 
-                                                are your choices:
-                                                  PlayerWeapon.PlayerWeaponNone
-                                                  PlayerWeapon.PlayerWeaponCanon
-                                                  PlayerWeapon.PlayerWeaponBlade
-                    
-                    - BladeRotateAction(rad)    if you have the blade as a weapon, you can set your
-                                                weapon to the given rotation in radians.
-
-          Arguments:
-               game_state (GameState): (fr): L'état de la partie.
-                                        (en): The state of the game.   
-          """
-          print(f"Current tick: {game_state.current_tick}")
-
-          actions = [
-               MoveAction((10.0, 11.34)),
-               ShootAction((11.2222, 13.547)),
-               SwitchWeaponAction(PlayerWeapon.PlayerWeaponBlade),
-               SaveAction(b"Hello World"),
-          ]
-                    
-          return actions
     
-    
-     def on_start(self, map_state: MapState):
-          """
-          (fr) Cette méthode est appelée une seule fois au début de la partie. Vous pouvez y définir des
-               actions à effectuer au début de la partie.
-
-          (en) This method is called once at the beginning of the game. You can define actions to be 
-               performed at the beginning of the game.
-
-          Arguments:
-               map_state (MapState): (fr) L'état de la carte.
-                                   (en) The state of the map.
-          """
-          self.__map_state = map_state
-          pass
-
-
-     def on_end(self):
-          """
-          (fr) Cette méthode est appelée une seule fois à la fin de la partie. Vous pouvez y définir des
-               actions à effectuer à la fin de la partie.
-
-          (en) This method is called once at the end of the game. You can define actions to be performed 
-               at the end of the game.
-          """
-          pass
         
+
+    def on_tick(self, game_state: GameState) -> List[Union[MoveAction, SwitchWeaponAction, RotateBladeAction, ShootAction, SaveAction]]:
+        
+        mystate = {}
+        actions = []
+        players = list(game_state.players)
+        for player in players:
+
+            if player.name == self.name:   
+
+                mystate = player
+                break
+        
+        playercoord =  player.pos
+        currentlocation = (round(player.pos.x,3),round(player.pos.y,3))
+        if currentlocation 
+        
+        actions.append(MoveAction((playercoord.x - 0,playercoord.y + 1)))
+        
+        print("current", mystate.pos)
+        print("dest", mystate.dest)
+        return actions
+
+    def on_start(self, map_state: MapState):
+        self.__map_state = map_state
+        print(map_state)
+
+    def on_end(self):
+        pass
+    def find_nearest_coin(self, coins, our_position):
+        return min(coins, key=lambda coin: self.distance(coin.position, our_position), default=None)
+
+    def find_nearest_enemy(self, players, our_bot):
+        enemies = [player for player in players if player['name'] != our_bot['name']]
+        return min(enemies, key=lambda enemy: self.distance(enemy['position'], our_bot['position']), default=None)
+
+    def distance(self, point1, point2):
+        return ((point1.x - point2.x)**2 + (point1.y - point2.y)**2)**0.5
+
+    def find_path(self, start: Point, goal: Point):
+        def heuristic(a, b):
+            return abs(b.x - a.x) + abs(b.y - a.y)
+
+        def get_neighbors(point):
+            neighbors = []
+            for dx, dy in [(0, 1), (1, 0), (0, -1), (-1, 0)]:
+                next_point = Point(point.x + dx, point.y + dy)
+                if 0 <= next_point.x < self.__map_state.size and 0 <= next_point.y < self.__map_state.size:
+                    if self.__map_state.discrete_grid[int(next_point.y)][int(next_point.x)] == 0:
+                        neighbors.append(next_point)
+            return neighbors
+
+        frontier = []
+        heapq.heappush(frontier, (0, start))
+        came_from = {start: None}
+        cost_so_far = {start: 0}
+
+        while frontier:
+            current = heapq.heappop(frontier)[1]
+
+            if current.x == goal.x and current.y == goal.y:
+                break
+
+            for next in get_neighbors(current):
+                new_cost = cost_so_far[current] + 1
+                if next not in cost_so_far or new_cost < cost_so_far[next]:
+                    cost_so_far[next] = new_cost
+                    priority = new_cost + heuristic(goal, next)
+                    heapq.heappush(frontier, (priority, next))
+                    came_from[next] = current
+
+        if goal not in came_from:
+            return None
+
+        path = []
+        current = goal
+        while current != start:
+            path.append(current)
+            current = came_from[current]
+        path.reverse()
+        return path

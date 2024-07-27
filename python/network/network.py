@@ -87,7 +87,7 @@ class Socket:
     
         json_message = json.dumps(json_reponse)
 
-        print(f"Sending message: {json_message}")
+        # print(f"Sending message: {json_message}")
         prefixed_message = bytearray([3]) + json_message.encode('utf-8')
         ws.send(prefixed_message)
 
