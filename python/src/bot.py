@@ -5,6 +5,8 @@ from core.game_state import GameState, PlayerWeapon, Point
 from core.map_state import MapState
 import math
 import heapq
+import numpy as np
+from scipy.optimize import fsolve
 
 
 class Cell:
@@ -115,9 +117,14 @@ class MyBot:
         if self.initialize:
             actions = [SwitchWeaponAction(PlayerWeapon.PlayerWeaponCanon)]
             self.initialize = False
-
+        us = self.name_search(game_state.players, "ChevyMalibu2010")
         a = self.find_nearest_enemy(game_state.players, "ChevyMalibu2010")
-        predicted_position = [a.pos.x, a.pos.y]
+
+        target_vel = [a.dest.x - a.pos.x, a.dest.y - a.pos.y]
+        target_vel = [Consts.Player.SPEED/self.distance((0,0), (target_vel[0], target_vel[1]))*target_vel[0], Consts.Player.SPEED/self.distance((0,0), (target_vel[0], target_vel[1]))*target_vel[1]]
+
+        # predicted_position = [a.pos.x, a.pos.y]
+        predicted_position = self.predict(us.pos, a.pos, target_vel)
         actions.append(ShootAction(predicted_position))
 
         if not mystate:
@@ -203,7 +210,8 @@ class MyBot:
 
         for player in players:
             if player.name != our_name:
-                curr_distance = ((my_pos.x - player.pos.x)**2 + (my_pos.y-player.pos.y)**2)**0.5
+                curr_distance = ((my_pos.x - player.pos.x) **
+                                 2 + (my_pos.y-player.pos.y)**2)**0.5
 
                 if curr_distance < smallest_distance:
                     smallest_distance = curr_distance
@@ -218,3 +226,19 @@ class MyBot:
             if player.name == name:
                 p = player
         return p
+
+    def predict(self, my_pos, target_pos, target_vel):
+
+        def equations(t):
+            x = target_pos.x + target_vel[0] * t
+            y = target_pos.y + target_vel[1] * t
+            d = np.sqrt((x - my_pos.x) ** 2 + (y - my_pos.y) ** 2)
+            return d - Consts.Projectile.SPEED * t
+
+        t_solution = fsolve(equations, 0)[0]
+
+        # Calculate the intersection point
+        x_intercept = target_pos.x + target_vel[0] * t_solution
+        y_intercept = target_pos.y + target_vel[1] * t_solution
+
+        return [x_intercept, y_intercept]
