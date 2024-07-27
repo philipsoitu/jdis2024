@@ -23,36 +23,57 @@ class MyBot:
         self.path = []
         self.mapstate = []
         self.lastposition = (0,0)
-        directions = [(10,0),(-10,0),(0,-10),(0,-10)]
+        self.directions = [(100,0),(0,-100),(-100,0),(0,100)]
+        self.directioncount = 0
+        self.moving = False
+
+
 
     
         
-
     def on_tick(self, game_state: GameState) -> List[Union[MoveAction, SwitchWeaponAction, RotateBladeAction, ShootAction, SaveAction]]:
-        
-        mystate = {}
         actions = []
-        players = list(game_state.players)
-        for player in players:
+        mystate = next((player for player in game_state.players if player.name == self.name), None)
+        
+        if not mystate:
+            return actions
 
-            if player.name == self.name:   
+        playercoord = mystate.pos
+        currentlocation = self.createPoint(playercoord)
+        nearestcookiecell = self.find_nearest_coin()
 
-                mystate = player
-                break
+        if currentlocation == self.lastposition and self.moving:
+            # ADD WALL logic here if needed
+            self.directioncount = (self.directioncount + 1) % 4
+            print(f"WALL encountered. New direction: {self.directioncount}")
+            currentcell = self.currentCell(currentlocation)
+            print(currentcell)
+            self.moving = False
+
+        if not self.moving:
+            dx, dy = self.directions[self.directioncount]
+            destination = (currentlocation[0] + dx, currentlocation[1] + dy)
+            self.moving = True    
+            actions.append(MoveAction(destination))
+
+        print(f"Current location: {currentlocation}")
+        print(f"Destination: {destination if 'destination' in locals() else 'Not set'}")
         
-        playercoord =  player.pos
-        currentlocation = (round(player.pos.x,3),round(player.pos.y,3))
-        if currentlocation 
-        
-        actions.append(MoveAction((playercoord.x - 0,playercoord.y + 1)))
-        
-        print("current", mystate.pos)
-        print("dest", mystate.dest)
+        self.lastposition = currentlocation
         return actions
 
     def on_start(self, map_state: MapState):
         self.__map_state = map_state
         print(map_state)
+
+    def createPoint(self,location: Point):
+        return (round(location.x,2),round(location.y,2))
+    
+    def currentCell(self, location):
+        x, y = location[0],location[1]
+        cell_x = x // 10
+        cell_y = y // 10
+        return (cell_x, cell_y)
 
     def on_end(self):
         pass
